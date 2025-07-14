@@ -1,9 +1,14 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany, hasOne} from '@adonisjs/lucid/orm'
+import type { HasOne } from '@adonisjs/lucid/types/relations'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
+import  type { HasMany } from '@adonisjs/lucid/types/relations'
+import Deposit from './deposit.js'
+import Withdrawal from './withdrawal.js'
+import Balance from './balance.js'
 
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
@@ -31,4 +36,13 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare updatedAt: DateTime | null
 
   static accessTokens = DbAccessTokensProvider.forModel(User)
+
+   @hasMany(() => Deposit)
+ declare deposits: HasMany<typeof Deposit>
+
+  @hasMany(() => Withdrawal)
+ declare withdrawals: HasMany<typeof Withdrawal>
+
+ @hasOne(() => Balance)
+ declare balance: HasOne<typeof Balance>
 }

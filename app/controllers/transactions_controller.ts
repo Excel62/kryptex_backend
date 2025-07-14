@@ -30,7 +30,6 @@ export default class TransactionsController {
             deposit,
         })
         } catch (error) {
-        console.error(error)
         return response.status(500).json({
             message: 'Failed to create deposit',
             errors: error.message,
@@ -69,11 +68,23 @@ export default class TransactionsController {
                 withdrawalRequest,
             })
         } catch (error) {
-            console.error(error)
             return response.status(500).json({
                 message: 'Failed to create withdrawal request',
                 errors: error.message,
             })
+        }
+    }
+
+    // get all user for one user
+    async getAllWithdrawal({request, response}: HttpContext){
+        const {userId} = request.all()
+        try{
+            const allwithdrawal = await Withdrawal.query().where('userId', userId)
+            return response.json({
+                allwithdrawal
+            })
+        }catch(e){
+            return response.status(501).json({e})
         }
     }
 }

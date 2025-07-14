@@ -8,6 +8,7 @@ import hash from '@adonisjs/core/services/hash'
 import Withdrawal from '#models/withdrawal'
 
 
+
 export default class AdminController {
 
     async signUp({ request, response }: HttpContext) {
@@ -33,7 +34,6 @@ export default class AdminController {
                 admin,
             })
         } catch (error) {
-            console.error(error)
             return response.status(500).json({
                 message: 'Failed to create admin',
                 errors: error.message,
@@ -75,9 +75,9 @@ export default class AdminController {
 
     async fetchAllUsers({ response }: HttpContext) {
         try {
-            const users = await User.all()
+            const users = await User.query().preload('balance') // Preload balance data
             return response.status(200).json({
-                message: 'Users fetched successfully',
+                message:  " successfully fetched all users",
                 users,
             })
         } catch (error) {
@@ -107,7 +107,8 @@ export default class AdminController {
 
     async fetchAllDeposits({ response }: HttpContext) {
         try {
-            const deposits = await Deposit.all()
+        //    Fetch all deposits from the database and user that deposited
+            const deposits = await Deposit.query().preload('user')
             return response.status(200).json({
                 message: 'Deposits fetched successfully',
                 deposits,
@@ -116,6 +117,7 @@ export default class AdminController {
             return response.status(500).json({
                 message: 'Failed to fetch deposits',
                 errors: error.message,
+                
             })
         }
     }
@@ -132,7 +134,7 @@ export default class AdminController {
                     message: 'Deposit nott found',
                 })
             }
-            deposit.status = 'complete' // Update status to completed
+            deposit.status = 'completed' // Update status to completed
             const intergerAmount = parseInt(String(deposit.amount))
             await deposit.save()
 
@@ -141,7 +143,6 @@ export default class AdminController {
 
 
             if (!alreadyBalance) {
-                console.log('No balance found for user, creating a new one')
                 await Balance.create({
                     userId,
                     amount: intergerAmount,
@@ -151,9 +152,7 @@ export default class AdminController {
             }
 
             if (alreadyBalance) {
-                console.log('Balance found for user, updating existing balance')
                 // const upddatedB = parseInt(alreadyBalance.amount) + parseInt(deposit.amount)
-                // console.log(upddatedB)
                 alreadyBalance.amount = parseInt(String(alreadyBalance.amount)) + parseInt(String(deposit.amount))
                 await alreadyBalance.save()
 
@@ -181,9 +180,8 @@ export default class AdminController {
     }
 
 
-    async rejectDeposit({ request, response }: HttpContext) {
-        const { depositId } = request.all()
-
+    async rejectDeposit({ response,params }: HttpContext) {
+        const  depositId  = params.id
         try {
             const deposit = await Deposit.findOrFail(depositId)
             deposit.status = 'rejected' // Update status to rejected
@@ -204,7 +202,7 @@ export default class AdminController {
 
     async fetchAllWithdrawals({ response }: HttpContext) {
         try {
-            const withdrawals = await Withdrawal.all()
+            const withdrawals = await Withdrawal.query().preload('user') // Preload user data
             return response.status(200).json({
                 message: 'Withdrawals fetched successfully',
                 withdrawals,
@@ -218,15 +216,15 @@ export default class AdminController {
     }
 
 
-    async approveWithdrawal({ response, request }: HttpContext) {
-        const { withdrawalId } = request.body()
+    async approveWithdrawal({ response, request, params }: HttpContext) {
+        const withdrawalId = params.id
+        const { userId } = request.body()
         try {
             const withdrawal = await Withdrawal.findOrFail(withdrawalId)
-            console.log(withdrawalId)
             withdrawal.status = 'completed' // Update status to completed
             await withdrawal.save()
             // Optionally, update user's balance here
-            const userBalance = await Balance.findByOrFail('userId', withdrawalId)
+            const userBalance = await Balance.findByOrFail('userId', userId)
             if (userBalance) {
                 userBalance.amount -= withdrawal.amount
                 await userBalance.save()
@@ -253,8 +251,8 @@ export default class AdminController {
         }
     }
 
-    async rejectWithdrawal({ request, response }: HttpContext) {
-        const { withdrawalId } = request.params()
+    async rejectWithdrawal({ response, params }: HttpContext) {
+       const withdrawalId = params.id
 
         try {
             const withdrawal = await Withdrawal.findOrFail(withdrawalId)
@@ -304,7 +302,6 @@ export default class AdminController {
                 message: 'User balance updated successfully',
             })
         } catch (error) {
-            console.error(error)
             return response.status(500).json({
                 message: 'Failed to update user balance',
                 errors: error.message,
@@ -336,7 +333,6 @@ export default class AdminController {
                 message: 'User balance updated successfully',
             })
         } catch (error) {
-            console.error(error)
             return response.status(500).json({
                 message: 'Failed to update user balance',
                 errors: error.message,

@@ -3,6 +3,9 @@ import PasswordResetToken from '#models/password_reset_token';
 import { createUserValidator } from '#validators/user';
 import type { HttpContext } from '@adonisjs/core/http';
 import Balance from '#models/balance';
+import env from '#start/env';
+import mail from '@adonisjs/mail/services/main'
+import Withdrawal from '#models/withdrawal';
 
 
 
@@ -14,12 +17,21 @@ export default class UsersController {
         try {
             const validatedData = await request.validateUsing(createUserValidator)
             const User = await user.create(validatedData)
+
+            mail.send((message) => {
+                message
+                    .to(User.email)
+                    .from(env.get('SMTP_USERNAME'))
+                    .subject('Welcome to Kryptex')
+                    .htmlView('email/welcome', {
+                        user: User.fullName,
+                    })
+            })
             return response.status(201).json({
                 message: 'User created successfully',
                 user: User,
             })
         } catch (error) {
-            console.log(error)
             return response.status(501).json({
                 message: 'Validation failed',
                 errors: error.messages,
@@ -68,9 +80,21 @@ export default class UsersController {
 
             // getting User balance using the id
             const userBalance = await Balance.query().where('userId', userInstance.id).first()
+            const withdrawals = await Withdrawal.query().where('userId', userInstance.id)
+            let sumWithdraws = 0
+
+            if(withdrawals.length > 0){
+                for (let index = 0; index < withdrawals.length; index++) {
+                    const element = withdrawals[index];
+                    sumWithdraws += Number(element.amount)
+                }
+            }
+
+            
             return response.status(200).json({
                 user: userInstance,
                 balance: userBalance? userBalance.amount : 0.00,
+                sumWithdrawal : sumWithdraws
             })
         }else{
             return response.status(404).json({
@@ -89,8 +113,18 @@ export default class UsersController {
             const existingToken = await PasswordResetToken.findBy('id', userInstance.id)
             if (existingToken) {
                 existingToken.token = + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-                console.log(existingToken.token)
                 await existingToken.save()
+                // Optionally, send an email with the new token
+                await mail.send((message) => {
+                    message
+                        .to(userInstance.email)
+                        .from(env.get('SMTP_USERNAME'))
+                        .subject('Password Reset Token')
+                        .htmlView('email/resetpassword', {
+                            token: existingToken.token,
+                            user: userInstance.fullName,
+                        })
+                })
             } else {
                 const newToken = await PasswordResetToken.create({
                     id: userInstance.id,
@@ -107,7 +141,7 @@ export default class UsersController {
 
         } catch (error) {
             return response.status(404).json({
-                message: 'User not found',
+                // message: 'User not found',
                 errors: error.message,
             })
         }
@@ -139,4 +173,5 @@ export default class UsersController {
             })
         }
     }
+
 }
